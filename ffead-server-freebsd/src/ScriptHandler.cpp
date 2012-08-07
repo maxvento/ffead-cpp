@@ -32,6 +32,35 @@ ScriptHandler::~ScriptHandler() {
 	// TODO Auto-generated destructor stub
 }
 
+string ScriptHandler::chdirExecute(string exe, string tmpf, bool retErrs)
+{
+	chdir(tmpf.c_str());
+	return execute(exe, retErrs);
+}
+
+string ScriptHandler::execute(string exe, bool retErrs)
+{
+	string data;
+	if(retErrs)
+	{
+		exe += " 2>&1";
+	}
+	FILE *pp;
+	pp = popen(exe.c_str(), "r");
+	if (pp != NULL) {
+		while (1) {
+		  char *line;
+		  char buf[1000];
+		  line = fgets(buf, sizeof buf, pp);
+		  if (line == NULL) break;
+		  data.append(line);
+		  //if (line[0] == 'd') printf("%s", line); /* line includes '\n' */
+		}
+		pclose(pp);
+	}
+	return data;
+}
+
 int ScriptHandler::popenRWE(int *rwepipe, const char *exe, const char *const argv[],string tmpf)
 {
 	int in[2];
@@ -162,54 +191,6 @@ int ScriptHandler::pcloseRWE(int pid, int *rwepipe)
 	return status;
 }
 
-bool ScriptHandler::execute(string command, vector<string> argss, string& output)
-{
-	bool success = true;
-	int pipe[3];
-	int pid;
-	const char** args = new const char*[argss.size()+2];
-	args[0] = command.c_str();
-	for (int var = 0; var < (int)argss.size(); ++var) {
-		args[var] = argss.at(var).c_str();
-	}
-	if(argss.size()==0)
-	{
-		args[1] = NULL;
-	}
-	else
-	{
-		args[argss.size()-1] = NULL;
-	}
-	pid = popenRWEN(pipe, command.c_str(), args);
-
-	char buffer[1024];
-	memset(buffer, 0, 1024);
-	int length;
-	logger << pipe[1] <<" " << pipe[2] << endl;
-	while ((length = read(pipe[1], buffer, 1024)) > 0)
-	{
-		string data(buffer, length);
-		output += data;
-		logger << data << endl;
-		memset(buffer, 0, 1024);
-	}
-	memset(buffer, 0, 1024);
-	//if(output=="")
-	{
-		while ((length = read(pipe[2], buffer, 1024)) > 0)
-		{
-			string data(buffer, length);
-			output += data;
-			logger << data << endl;
-			memset(buffer, 0, 1024);
-			success = false;
-		}
-		memset(buffer, 0, 1024);
-	}
-	pcloseRWE(pid, pipe);
-	return success;
-}
-
 bool ScriptHandler::handle(HttpRequest* req, HttpResponse& res, map<string, string> handoffs, void* dlib,
 		string ext, map<string, string> props)
 {
@@ -233,39 +214,9 @@ bool ScriptHandler::handle(HttpRequest* req, HttpResponse& res, map<string, stri
 		tmpf = req->getCntxt_root() + tmpf;
 
 		AfcUtil::writeTofile(tmpf+filen, phpcnts, true);
-		const char *const args[] = {
-				"php",
-				filen.c_str(),
-				NULL
-		};
-		pid = popenRWE(pipe, args[0], args, tmpf);
 
-		char buffer[1024];
-		memset(buffer, 0, 1024);
-		int length;
-		string content;
-		while ((length = read(pipe[1], buffer, 1024)) != 0)
-		{
-			//logger << length << endl;
-			string data(buffer, length);
-			//logger << data << endl;
-			content += data;
-			memset(buffer, 0, 1024);
-		}
-		memset(buffer, 0, 1024);
-		if(content=="")
-		{
-			while ((length = read(pipe[2], buffer, 1024)) != 0)
-			{
-				//logger << length << endl;
-				string data(buffer, length);
-				//logger << data << endl;
-				content += data;
-				memset(buffer, 0, 1024);
-			}
-			memset(buffer, 0, 1024);
-		}
-		pcloseRWE(pid, pipe);
+		string command = "php " + filen;
+		string content = chdirExecute(command, tmpf, Constants::SCRIPT_EXEC_SHOW_ERRS);
 		if((content.length()==0))
 		{
 			res.setStatusCode("404");
@@ -286,12 +237,19 @@ bool ScriptHandler::handle(HttpRequest* req, HttpResponse& res, map<string, stri
 		skipit = true;
 		int pipe[3];
 		int pid;
-
+		string def;
+		string tmpf = "/temp/";
+		string filen;
+		if(handoffs.find(req->getCntxt_name())!=handoffs.end())
+		{
+			def = handoffs[req->getCntxt_name()];
+			tmpf = "/";
+		}
+		filen = boost::lexical_cast<string>(Timer::getCurrentTime()) + ".pl";
+		tmpf = req->getCntxt_root() + tmpf;
 		string phpcnts = req->toPerlVariablesString();
-		//logger << phpcnts << endl;
-		string tmpf = req->getCntxt_root() + "/temp/" + boost::lexical_cast<string>(Timer::getCurrentTime()) + ".pl";
 		//logger << tmpf << endl;
-		string plfile = req->getCntxt_root()+"/scripts/perl/"+req->getFile();
+		string plfile = req->getUrl();
 		ifstream infile(plfile.c_str());
 		string xml;
 		if(infile.is_open())
@@ -302,40 +260,10 @@ bool ScriptHandler::handle(HttpRequest* req, HttpResponse& res, map<string, stri
 			}
 		}
 		infile.close();
-		AfcUtil::writeTofile(tmpf, phpcnts, true);
-		const char *const args[] = {
-				"perl",
-				tmpf.c_str(),
-				NULL
-		};
-		pid = popenRWE(pipe, args[0], args, "");
+		AfcUtil::writeTofile(tmpf+filen, phpcnts, true);
 
-		char buffer[1024];
-		memset(buffer, 0, 1024);
-		int length;
-		string content;
-		while ((length = read(pipe[1], buffer, 1024)) != 0)
-		{
-			//logger << length << endl;
-			string data(buffer, length);
-			//logger << data << endl;
-			content += data;
-			memset(buffer, 0, 1024);
-		}
-		memset(buffer, 0, 1024);
-		if(content=="")
-		{
-			while ((length = read(pipe[2], buffer, 1024)) != 0)
-			{
-				//logger << length << endl;
-				string data(buffer, length);
-				//logger << data << endl;
-				content += data;
-				memset(buffer, 0, 1024);
-			}
-			memset(buffer, 0, 1024);
-		}
-		pcloseRWE(pid, pipe);
+		string command = "perl " + filen;
+		string content = chdirExecute(command, tmpf, Constants::SCRIPT_EXEC_SHOW_ERRS);
 		if((content.length()==0))
 		{
 			res.setStatusCode("404");
@@ -356,46 +284,23 @@ bool ScriptHandler::handle(HttpRequest* req, HttpResponse& res, map<string, stri
 		skipit = true;
 		int pipe[3];
 		int pid;
-
+		string def;
+		string tmpf = "/temp/";
+		string filen;
+		if(handoffs.find(req->getCntxt_name())!=handoffs.end())
+		{
+			def = handoffs[req->getCntxt_name()];
+			tmpf = "/";
+		}
 		string phpcnts = req->toRubyVariablesString();
 		//logger << phpcnts << endl;
-		string tmpf = req->getCntxt_root() + "/temp/" + boost::lexical_cast<string>(Timer::getCurrentTime()) + ".rb";
-		//logger << tmpf << endl;
-		AfcUtil::writeTofile(tmpf, phpcnts, true);
-		const char *const args[] = {
-				"ruby",
-				tmpf.c_str(),
-				NULL
-		};
-		pid = popenRWE(pipe, args[0], args, "");
+		filen = boost::lexical_cast<string>(Timer::getCurrentTime()) + ".rb";
+		tmpf = req->getCntxt_root() + tmpf;
 
-		char buffer[1024];
-		memset(buffer, 0, 1024);
-		int length;
-		string content;
-		while ((length = read(pipe[1], buffer, 1024)) != 0)
-		{
-			//logger << length << endl;
-			string data(buffer, length);
-			//logger << data << endl;
-			content += data;
-			memset(buffer, 0, 1024);
-		}
-		memset(buffer, 0, 1024);
-		if(content=="")
-		{
-			while ((length = read(pipe[2], buffer, 1024)) != 0)
-			{
-				//logger << length << endl;
-				string data(buffer, length);
-				//logger << data << endl;
-				content += data;
-				memset(buffer, 0, 1024);
-			}
-			memset(buffer, 0, 1024);
-		}
+		AfcUtil::writeTofile(tmpf+filen, phpcnts, true);
 
-		pcloseRWE(pid, pipe);
+		string command = "ruby " + filen;
+		string content = chdirExecute(command, tmpf, Constants::SCRIPT_EXEC_SHOW_ERRS);
 		if((content.length()==0))
 		{
 			res.setStatusCode("404");
@@ -416,12 +321,18 @@ bool ScriptHandler::handle(HttpRequest* req, HttpResponse& res, map<string, stri
 		skipit = true;
 		int pipe[3];
 		int pid;
-
+		string def;
+		string tmpf = "/temp/";
+		string filen;
+		if(handoffs.find(req->getCntxt_name())!=handoffs.end())
+		{
+			def = handoffs[req->getCntxt_name()];
+			tmpf = "/";
+		}
+		filen = boost::lexical_cast<string>(Timer::getCurrentTime()) + ".py";
+		tmpf = req->getCntxt_root() + tmpf;
 		string phpcnts = req->toPythonVariablesString();
-		//logger << phpcnts << endl;
-		string tmpf = req->getCntxt_root() + "/temp/" + boost::lexical_cast<string>(Timer::getCurrentTime()) + ".py";
-		//logger << tmpf << endl;
-		string plfile = req->getCntxt_root()+"/scripts/python/"+req->getFile();
+		string plfile = req->getUrl();
 		ifstream infile(plfile.c_str());
 		string xml;
 		if(infile.is_open())
@@ -432,41 +343,10 @@ bool ScriptHandler::handle(HttpRequest* req, HttpResponse& res, map<string, stri
 			}
 		}
 		infile.close();
-		AfcUtil::writeTofile(tmpf, phpcnts, true);
-		const char *const args[] = {
-				"python",
-				tmpf.c_str(),
-				NULL
-		};
-		pid = popenRWE(pipe, args[0], args, "");
+		AfcUtil::writeTofile(tmpf+filen, phpcnts, true);
 
-		char buffer[1024];
-		memset(buffer, 0, 1024);
-		int length;
-		string content;
-		while ((length = read(pipe[1], buffer, 1024)) != 0)
-		{
-			//logger << length << endl;
-			string data(buffer, length);
-			//logger << data << endl;
-			content += data;
-			memset(buffer, 0, 1024);
-		}
-		memset(buffer, 0, 1024);
-		if(content=="")
-		{
-			while ((length = read(pipe[2], buffer, 1024)) != 0)
-			{
-				//logger << length << endl;
-				string data(buffer, length);
-				//logger << data << endl;
-				content += data;
-				memset(buffer, 0, 1024);
-			}
-			memset(buffer, 0, 1024);
-		}
-
-		pcloseRWE(pid, pipe);
+		string command = "python " + filen;
+		string content = chdirExecute(command, tmpf, Constants::SCRIPT_EXEC_SHOW_ERRS);
 		if((content.length()==0))
 		{
 			res.setStatusCode("404");
@@ -487,46 +367,23 @@ bool ScriptHandler::handle(HttpRequest* req, HttpResponse& res, map<string, stri
 		skipit = true;
 		int pipe[3];
 		int pid;
-
+		string def;
+		string tmpf = "/temp/";
+		string filen;
+		if(handoffs.find(req->getCntxt_name())!=handoffs.end())
+		{
+			def = handoffs[req->getCntxt_name()];
+			tmpf = "/";
+		}
 		string phpcnts = req->toLuaVariablesString();
 		//logger << phpcnts << endl;
-		string tmpf = req->getCntxt_root() + "/temp/" + boost::lexical_cast<string>(Timer::getCurrentTime()) + ".lua";
-		//logger << tmpf << endl;
-		AfcUtil::writeTofile(tmpf, phpcnts, true);
-		const char *const args[] = {
-				"lua",
-				tmpf.c_str(),
-				NULL
-		};
-		pid = popenRWE(pipe, args[0], args, "");
+		filen = boost::lexical_cast<string>(Timer::getCurrentTime()) + ".lua";
+		tmpf = req->getCntxt_root() + tmpf;
 
-		char buffer[1024];
-		memset(buffer, 0, 1024);
-		int length;
-		string content;
-		while ((length = read(pipe[1], buffer, 1024)) != 0)
-		{
-			//logger << length << endl;
-			string data(buffer, length);
-			//logger << data << endl;
-			content += data;
-			memset(buffer, 0, 1024);
-		}
-		memset(buffer, 0, 1024);
-		if(content=="")
-		{
-			while ((length = read(pipe[2], buffer, 1024)) != 0)
-			{
-				//logger << length << endl;
-				string data(buffer, length);
-				//logger << data << endl;
-				content += data;
-				memset(buffer, 0, 1024);
-			}
-			memset(buffer, 0, 1024);
-		}
+		AfcUtil::writeTofile(tmpf+filen, phpcnts, true);
 
-		pcloseRWE(pid, pipe);
+		string command = "lua " + filen;
+		string content = chdirExecute(command, tmpf, Constants::SCRIPT_EXEC_SHOW_ERRS);
 		if((content.length()==0))
 		{
 			res.setStatusCode("404");
@@ -547,46 +404,23 @@ bool ScriptHandler::handle(HttpRequest* req, HttpResponse& res, map<string, stri
 		skipit = true;
 		int pipe[3];
 		int pid;
-
+		string def;
+		string tmpf = "/temp/";
+		string filen;
+		if(handoffs.find(req->getCntxt_name())!=handoffs.end())
+		{
+			def = handoffs[req->getCntxt_name()];
+			tmpf = "/";
+		}
 		string phpcnts = req->toNodejsVariablesString();
 		//logger << phpcnts << endl;
-		string tmpf = req->getCntxt_root() + "/temp/" + boost::lexical_cast<string>(Timer::getCurrentTime()) + ".njs";
-		//logger << tmpf << endl;
-		AfcUtil::writeTofile(tmpf, phpcnts, true);
-		const char *const args[] = {
-				"node",
-				tmpf.c_str(),
-				NULL
-		};
-		pid = popenRWE(pipe, args[0], args, "");
+		filen = boost::lexical_cast<string>(Timer::getCurrentTime()) + ".njs";
+		tmpf = req->getCntxt_root() + tmpf;
 
-		char buffer[1024];
-		memset(buffer, 0, 1024);
-		int length;
-		string content;
-		while ((length = read(pipe[1], buffer, 1024)) != 0)
-		{
-			//logger << length << endl;
-			string data(buffer, length);
-			//logger << data << endl;
-			content += data;
-			memset(buffer, 0, 1024);
-		}
-		memset(buffer, 0, 1024);
-		if(content=="")
-		{
-			while ((length = read(pipe[2], buffer, 1024)) != 0)
-			{
-				//logger << length << endl;
-				string data(buffer, length);
-				//logger << data << endl;
-				content += data;
-				memset(buffer, 0, 1024);
-			}
-			memset(buffer, 0, 1024);
-		}
+		AfcUtil::writeTofile(tmpf+filen, phpcnts, true);
 
-		pcloseRWE(pid, pipe);
+		string command = "node " + filen;
+		string content = chdirExecute(command, tmpf, Constants::SCRIPT_EXEC_SHOW_ERRS);
 		if((content.length()==0))
 		{
 			res.setStatusCode("404");

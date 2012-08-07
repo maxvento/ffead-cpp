@@ -23,3 +23,5 @@
 #include "Constants.h"
 
 string Constants::INTER_LIB_FILE = "libinter.so";
+bool Constants::SYS_FORK_AVAIL = true;
+bool Constants::SCRIPT_EXEC_SHOW_ERRS = false;

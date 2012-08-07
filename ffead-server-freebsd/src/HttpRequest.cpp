@@ -285,6 +285,202 @@ HttpRequest::HttpRequest(strVec vec,string path)
 						}
 					}
 				}
+				else if(!contStarts && boost::find_first(tem, "HEAD"))
+				{
+					boost::replace_first(tem,"HEAD ","");
+					this->setMethod("HEAD");
+					boost::iter_split(vemp, tem, boost::first_finder(" "));
+					if(vemp.size()==2)
+					{
+						boost::replace_first(vemp.at(1),"\r","");
+						this->setHttpVersion(vemp.at(1));
+						boost::replace_first(vemp.at(0)," ","");
+						if(vemp.at(0).find("?")!=string ::npos)
+						{
+							strVec params;
+							string valu(vemp.at(0));
+							vemp[0] = valu.substr(0,vemp.at(0).find("?"));
+							valu = valu.substr(valu.find("?")+1);
+							//valu = CryptoHandler::urlDecode(valu);
+							boost::iter_split(params,valu , boost::first_finder("&"));
+							map<string ,int> indices;
+							map<string,string>::iterator it;
+							for(unsigned j=0;j<params.size();j++)
+							{
+								strVec param;
+								boost::iter_split(param, params.at(j), boost::first_finder("="));
+								if(param.size()==2)
+								{
+									string att = param.at(0);
+									boost::replace_first(att,"\r","");
+									boost::replace_first(att,"\t","");
+									boost::replace_first(att," ","");
+									//this->setRequestParam(att,CryptoHandler::urlDecode(param.at(1)));
+									string attN = CryptoHandler::urlDecode(att);
+									if(attN.find("[")!=string::npos && attN.find("]")!=string::npos)
+									{
+										if(indices.find(attN)==indices.end())
+										{
+											indices[attN] = 0;
+										}
+										else
+										{
+											indices[attN] = indices[attN] + 1;
+										}
+										this->requestParams[attN.substr(0, attN.find("[")+1)
+												  + boost::lexical_cast<string>(indices[attN])
+												  + "]"] = CryptoHandler::urlDecode(param.at(1));
+										logger << "creating array from similar params" << attN.substr(0, attN.find("[")+1)
+														  + boost::lexical_cast<string>(indices[attN])
+														  + "]"
+														  << CryptoHandler::urlDecode(param.at(1)) << endl;
+									}
+									else
+										this->setQueryParam(attN,CryptoHandler::urlDecode(param.at(1)));
+									//logger << att << " = " << param.at(1) << endl;
+									reqorderinf[reqorderinf.size()+1] = att;
+								}
+							}
+						}
+						this->setActUrl(vemp.at(0));
+						boost::iter_split(memp, vemp.at(0), boost::first_finder("/"));
+						int fs = vemp.at(0).find_first_of("/");
+						int es = vemp.at(0).find_last_of("/");
+						if(fs==es)
+						{
+							this->setCntxt_root(path+"default");
+							this->setCntxt_name("default");
+							this->setFile(vemp.at(0).substr(es+1));
+							this->setUrl(path+"default/"+vemp.at(0));
+						}
+						else
+						{
+							int ss = vemp.at(0).substr(fs+1).find("/");
+							if(ss>fs)
+							{
+								this->setCntxt_name(vemp.at(0).substr(fs+1,ss-fs));
+								this->setCntxt_root(path+this->getCntxt_name());
+								this->setFile(vemp.at(0).substr(es+1));
+								this->setUrl(path+vemp.at(0));
+							}
+						}
+					}
+				}
+				else if(!contStarts && boost::find_first(tem, "TRACE"))
+				{
+					boost::replace_first(tem,"TRACE ","");
+					this->setMethod("TRACE");
+					boost::iter_split(vemp, tem, boost::first_finder(" "));
+					if(vemp.size()==2)
+					{
+						boost::replace_first(vemp.at(1),"\r","");
+						this->setHttpVersion(vemp.at(1));
+						boost::replace_first(vemp.at(0)," ","");
+						if(vemp.at(0).find("?")!=string ::npos)
+						{
+							strVec params;
+							string valu(vemp.at(0));
+							vemp[0] = valu.substr(0,vemp.at(0).find("?"));
+							valu = valu.substr(valu.find("?")+1);
+							//valu = CryptoHandler::urlDecode(valu);
+							boost::iter_split(params,valu , boost::first_finder("&"));
+							map<string ,int> indices;
+							map<string,string>::iterator it;
+							for(unsigned j=0;j<params.size();j++)
+							{
+								strVec param;
+								boost::iter_split(param, params.at(j), boost::first_finder("="));
+								if(param.size()==2)
+								{
+									string att = param.at(0);
+									boost::replace_first(att,"\r","");
+									boost::replace_first(att,"\t","");
+									boost::replace_first(att," ","");
+									//this->setRequestParam(att,CryptoHandler::urlDecode(param.at(1)));
+									string attN = CryptoHandler::urlDecode(att);
+									if(attN.find("[")!=string::npos && attN.find("]")!=string::npos)
+									{
+										if(indices.find(attN)==indices.end())
+										{
+											indices[attN] = 0;
+										}
+										else
+										{
+											indices[attN] = indices[attN] + 1;
+										}
+										this->requestParams[attN.substr(0, attN.find("[")+1)
+												  + boost::lexical_cast<string>(indices[attN])
+												  + "]"] = CryptoHandler::urlDecode(param.at(1));
+										logger << "creating array from similar params" << attN.substr(0, attN.find("[")+1)
+														  + boost::lexical_cast<string>(indices[attN])
+														  + "]"
+														  << CryptoHandler::urlDecode(param.at(1)) << endl;
+									}
+									else
+										this->setQueryParam(attN,CryptoHandler::urlDecode(param.at(1)));
+									//logger << att << " = " << param.at(1) << endl;
+									reqorderinf[reqorderinf.size()+1] = att;
+								}
+							}
+						}
+						this->setActUrl(vemp.at(0));
+						boost::iter_split(memp, vemp.at(0), boost::first_finder("/"));
+						int fs = vemp.at(0).find_first_of("/");
+						int es = vemp.at(0).find_last_of("/");
+						if(fs==es)
+						{
+							this->setCntxt_root(path+"default");
+							this->setCntxt_name("default");
+							this->setFile(vemp.at(0).substr(es+1));
+							this->setUrl(path+"default/"+vemp.at(0));
+						}
+						else
+						{
+							int ss = vemp.at(0).substr(fs+1).find("/");
+							if(ss>fs)
+							{
+								this->setCntxt_name(vemp.at(0).substr(fs+1,ss-fs));
+								this->setCntxt_root(path+this->getCntxt_name());
+								this->setFile(vemp.at(0).substr(es+1));
+								this->setUrl(path+vemp.at(0));
+							}
+						}
+					}
+				}
+				else if(!contStarts && boost::find_first(tem, "OPTIONS"))
+				{
+					boost::replace_first(tem,"OPTIONS ","");
+					this->setMethod("OPTIONS");
+					boost::iter_split(vemp, tem, boost::first_finder(" "));
+					if(vemp.size()==2)
+					{
+						boost::replace_first(vemp.at(1),"\r","");
+						this->setHttpVersion(vemp.at(1));
+						boost::replace_first(vemp.at(0)," ","");
+						this->setActUrl(vemp.at(0));
+						boost::iter_split(memp, vemp.at(0), boost::first_finder("/"));
+						int fs = vemp.at(0).find_first_of("/");
+						int es = vemp.at(0).find_last_of("/");
+						if(fs==es)
+						{
+							this->setCntxt_root(path+"default");
+							this->setCntxt_name("default");
+							this->setFile(vemp.at(0).substr(es+1));
+							this->setUrl(path+"default/"+vemp.at(0));
+						}
+						else
+						{
+							int ss = vemp.at(0).substr(fs+1).find("/");
+							if(ss>fs)
+							{
+								this->setCntxt_name(vemp.at(0).substr(fs+1,ss-fs));
+								this->setCntxt_root(path+this->getCntxt_name());
+								this->setFile(vemp.at(0).substr(es+1));
+								this->setUrl(path+vemp.at(0));
+							}
+						}
+					}
+				}
 				else if(!contStarts && boost::find_first(tem, "DELETE"))
 				{
 					boost::replace_first(tem,"DELETE ","");
@@ -1351,17 +1547,18 @@ string HttpRequest::getFile() const
 
 void HttpRequest::setFile(string file)
 {
-	this->file = file;
 	logger << "file is " << this->file << endl;
-	if(this->file!="" && this->url.find(this->file)!=string::npos)
+	if(this->file!="" && this->url.find(this->file)!=string::npos
+			&& this->url.find("/")!=string::npos)
 	{
-		int fst = this->url.find_last_of(this->file) - this->file.length() + 1;
-		this->url = this->url.substr(0, fst) +  this->file;
+		//int fst = this->url.find_last_of(this->file) - this->file.length() + 1;
+		this->url = this->url.substr(0, this->url.find_last_of("/")+1) +  file;
 	}
 	else
 	{
-		this->url +=  this->file;
+		this->url +=  "/" + file;
 	}
+	this->file = file;
 }
 
 string HttpRequest::getActUrl() const
@@ -1477,7 +1674,7 @@ string HttpRequest::toPHPVariablesString(string def)
 		}
 	}
 	if(def=="")
-		ret += "\ninclude_once('"+this->getCntxt_root()+"/scripts/php/"+this->getFile()+"');";
+		ret += "\ninclude_once('"+this->getUrl()+"');";
 	else
 		ret += "\ninclude_once('"+def+"');";
 	ret += "?>";
@@ -1683,7 +1880,7 @@ string HttpRequest::toRubyVariablesString()
 			}
 		}
 	}
-	ret += "\nrequire ('"+this->getCntxt_root()+"/scripts/ruby/"+this->getFile()+"')\n";
+	ret += "\nrequire ('"+this->getUrl()+"')\n";
 	return ret;
 }
 
@@ -1883,7 +2080,7 @@ string HttpRequest::toLuaVariablesString()
 			}
 		}
 	}
-	ret += "\ndofile(\""+this->getCntxt_root()+"/scripts/lua/"+this->getFile()+"\")\n";
+	ret += "\ndofile(\""+this->getUrl()+"\")\n";
 	return ret;
 }
 
@@ -1977,7 +2174,7 @@ string HttpRequest::toNodejsVariablesString()
 			}
 		}
 	}
-	ret += "\nrequire('"+this->getCntxt_root()+"/scripts/nodejs/"+this->getFile()+"');";
+	ret += "\nrequire('"+this->getUrl()+"');";
 	return ret;
 }
 

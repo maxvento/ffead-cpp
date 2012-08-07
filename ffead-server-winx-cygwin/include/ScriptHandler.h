@@ -22,6 +22,7 @@
 
 #ifndef SCRIPTHANDLER_H_
 #define SCRIPTHANDLER_H_
+#include <stdlib.h>
 #include "AfcUtil.h"
 #include "HttpRequest.h"
 #include "HttpResponse.h"
@@ -30,6 +31,7 @@
 #include "Timer.h"
 #include <unistd.h>
 #include "Logger.h"
+#include "Constants.h"
 
 class ScriptHandler {
 	static Logger logger;
@@ -38,7 +40,8 @@ class ScriptHandler {
 	static int popenRWEN(int *rwepipe, const char *exe, const char** argv);
 public:
 	ScriptHandler();
-	static bool execute(string command, vector<string> argss, string& output);
+	static string execute(string exe, bool retErrs);
+	static string chdirExecute(string exe, string tmpf, bool retErrs);
 	static bool handle(HttpRequest* req, HttpResponse& res, map<string, string> handoffs, void* dlib,
 			string ext, map<string, string> props);
 	virtual ~ScriptHandler();
