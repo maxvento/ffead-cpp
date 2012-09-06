@@ -1,5 +1,5 @@
 /*
-	Copyright 2010, Sumeet Chhetri
+	Copyright 2009-2012, Sumeet Chhetri
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -497,21 +497,18 @@ pid_t createChildProcess(string serverRootDirectory,int sp[],int sockfd)
 					continue;
 				}
 
-						if(isThreadprq)
-						{
-							ServiceTask *task = new ServiceTask(n,serverRootDirectory,&params,
-										isSSLEnabled, ctx, sSLHandler, configurationData, dlib);
-							Thread pthread(&service, task);
-							pthread.execute();
-							delete task;
-						}
-						else
-						{
-							ServiceTask *task = new ServiceTask(n,serverRootDirectory,&params,
-									isSSLEnabled, ctx, sSLHandler, configurationData, dlib);
-							pool.execute(*task);
-						}
-					}
+				if(isThreadprq)
+				{
+					ServiceTask *task = new ServiceTask(fd,serverRootDirectory,&params,
+								isSSLEnabled, ctx, sSLHandler, configurationData, dlib);
+					Thread pthread(&service, task);
+					pthread.execute();
+				}
+				else
+				{
+					ServiceTask *task = new ServiceTask(fd,serverRootDirectory,&params,
+							isSSLEnabled, ctx, sSLHandler, configurationData, dlib);
+					pool.execute(*task);
 				}
 			}
 		}

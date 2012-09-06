@@ -1,5 +1,5 @@
 /*
-	Copyright 2010, Sumeet Chhetri
+	Copyright 2009-2012, Sumeet Chhetri
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -592,7 +592,7 @@ ConfigurationData ConfigurationHandler::handle(strVec webdirs,strVec webdirs1,st
 					ElementList elese = eles.at(apps).getChildElements();
 					string nsfns = "\nvar _fview_namespace = {";
 					string js = "\n\nwindow.onload = function(){";
-					for (unsigned int appse = 0; appse < elese.size(); appse++)
+					for (int appse = 0; appse < (int)elese.size(); appse++)
 					{
 						if(elese.at(appse).getTagName()=="event")
 						{
